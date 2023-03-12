@@ -55,13 +55,14 @@ module.exports = {
     ],
     run: async (DiscordClient, interaction) => {
         interaction.deferReply({ ephemeral: true })
-
         setTimeout(async () => {
             const user = interaction.options.getString('user')
             const tag = interaction.options.getString('tag')
             const region = interaction.options.getString('region')
-            let text = ''
+            let text = '';
+            let dmtext = '';
             const data = await VAPI.getMatches({ region: region, name: user, tag: tag, size: 5, filter: 'competitive' })
+            const dmdata = await VAPI.getMatches({ region: region, name: user, tag: tag, size: 5, filter: 'deathmatch' })
             if (data.status == 404) return interaction.editReply({ content: "No player found with the given information." });
             let playerKills = 0; let playerDeaths = 0;
             for (let i = 0; i < data.data.length; i++) {
@@ -76,6 +77,22 @@ module.exports = {
                     }
                     if (data.data[i].kills[j].victim_display_name == `${user}#${tag}`) {
                         playerDeaths += 1
+                    }
+                }
+            }
+            let dmplayerKills = 0; let dmplayerDeaths = 0;
+            for (let i = 0; i < dmdata.data.length; i++) {
+                for (let k = 0; k < dmdata.data[i].players['all_players'].length; k++) {
+                    if (dmdata.data[i].players['all_players'][k].name == user && dmdata.data[i].players['all_players'][k].tag == tag) {
+                        dmtext = dmtext + `${dmdata.data[i].players['all_players'][k].character}, ${data.data[i].players['all_players'][k].stats['kills']} Kills, ${data.data[i].players['all_players'][k].stats['deaths']} Deaths, ${data.data[i].players['all_players'][k].stats['assists']} Assists\n`
+                    }
+                }
+                for (let j = 0; j < dmdata.data[i].kills.length; j++) {
+                    if (dmdata.data[i].kills[j].killer_display_name == `${user}#${tag}`) {
+                        dmplayerKills += 1
+                    }
+                    if (dmdata.data[i].kills[j].victim_display_name == `${user}#${tag}`) {
+                        dmplayerDeaths += 1
                     }
                 }
             }
@@ -96,7 +113,8 @@ module.exports = {
                 Kills: **${playerKills}**
                 Deaths: **${playerDeaths}**
                 `)
-                .addFields({ name: 'Past 5 games', value: "```Agent, Kills, Deaths, Assists\n" + text + "```", inline: false })
+                .addFields({ name: 'Past 5 Competitive Games', value: "```Agent, Kills, Deaths, Assists\n" + text + "```", inline: false })
+                .addFields({ name: 'Past 5 Deathmatch Games', value: "```Agent, Kills, Deaths, Assists\n" + dmtext + "```", inline: false })
             interaction.editReply({ embeds: [embed] })
         }, 3000)
     }
