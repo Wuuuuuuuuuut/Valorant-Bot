@@ -26,30 +26,12 @@ module.exports = {
             type: ApplicationCommandOptionType.String,
             required: true,
             choices: [
-                {
-                    name: "Brazil",
-                    value: "br"
-                },
-                {
-                    name: "Europe",
-                    value: "eu"
-                },
-                {
-                    name: "Korea",
-                    value: "kr"
-                },
-                {
-                    name: "Latin America",
-                    value: "latam"
-                },
-                {
-                    name: "North America",
-                    value: "na"
-                },
-                {
-                    name: "Southeast Asia/ Asia - Pacific",
-                    value: "ap"
-                }
+                { name: "Brazil", value: "br" },
+                { name: "Europe", value: "eu" },
+                { name: "Korea", value: "kr" },
+                { name: "Latin America", value: "latam" },
+                { name: "North America", value: "na" },
+                { name: "Southeast Asia/ Asia - Pacific", value: "ap" }
             ],
         },
     ],
@@ -59,8 +41,11 @@ module.exports = {
             const user = interaction.options.getString('user')
             const tag = interaction.options.getString('tag')
             const region = interaction.options.getString('region')
+            const MMR = await VAPI.getMMR({ version: 'v2', region: region, name: user, tag: tag })
+            const leaderboardStats = await VAPI.getLeaderboard({ version: 'v2', region: region, name: user, tag: tag })
             let text = '';
             let dmtext = '';
+            let descriptionText = '';
             const data = await VAPI.getMatches({ region: region, name: user, tag: tag, size: 5, filter: 'competitive' })
             const dmdata = await VAPI.getMatches({ region: region, name: user, tag: tag, size: 5, filter: 'deathmatch' })
             if (data.status == 404) return interaction.editReply({ content: "No player found with the given information." });
@@ -84,7 +69,7 @@ module.exports = {
             for (let i = 0; i < dmdata.data.length; i++) {
                 for (let k = 0; k < dmdata.data[i].players['all_players'].length; k++) {
                     if (dmdata.data[i].players['all_players'][k].name == user && dmdata.data[i].players['all_players'][k].tag == tag) {
-                        dmtext = dmtext + `${dmdata.data[i].players['all_players'][k].character}, ${data.data[i].players['all_players'][k].stats['kills']} Kills, ${data.data[i].players['all_players'][k].stats['deaths']} Deaths, ${data.data[i].players['all_players'][k].stats['assists']} Assists\n`
+                        dmtext = dmtext + `${dmdata.data[i].players['all_players'][k].character}, ${dmdata.data[i].players['all_players'][k].stats['kills']} Kills, ${dmdata.data[i].players['all_players'][k].stats['deaths']} Deaths, ${dmdata.data[i].players['all_players'][k].stats['assists']} Assists\n`
                     }
                 }
                 for (let j = 0; j < dmdata.data[i].kills.length; j++) {
@@ -97,22 +82,16 @@ module.exports = {
                 }
             }
             let kd = playerKills / playerDeaths
-            const MMR = await VAPI.getMMR({ version: 'v2', region: region, name: user, tag: tag })
             let highestrank = MMR.data.highest_rank.season.replace('e', 'Episode, ').replace('a', ' Act')
+            if (leaderboardStats.status == 200) {
+                descriptionText = `Performance Overview\n\nCurrent Rank: **${MMR.data.current_data.currenttierpatched}** - *${MMR.data.current_data.ranking_in_tier} RR*\nLeaderboard: #**${leaderboardStats.data[0].leaderboardRank}** - *${leaderboardStats.data[0].numberOfWins} Wins*\n--------------------------------------------------\nHighest Rank: **${MMR.data.highest_rank.patched_tier}** - *${highestrank}*\n\n**Stats the past 5 games**\nAVG. K/D: **${Number.parseFloat(kd).toFixed(2)}**\nKills: **${playerKills}**\nDeaths: **${playerDeaths}**`
+            } else {
+                descriptionText = `Performance Overview\n\nCurrent Rank: **${MMR.data.current_data.currenttierpatched}** - *${MMR.data.current_data.ranking_in_tier} RR*\n--------------------------------------------------\nHighest Rank: **${MMR.data.highest_rank.patched_tier}** - *${highestrank}*\n\n**Stats the past 5 games**\nAVG. K/D: **${Number.parseFloat(kd).toFixed(2)}**\nKills: **${playerKills}**\nDeaths: **${playerDeaths}**`
+            }
             const embed = new EmbedBuilder()
                 .setThumbnail(MMR.data.current_data.images['small'])
                 .setAuthor({ name: `${MMR.data.name}#${MMR.data.tag}'s Profile [EU]`, iconURL: interaction.guild.iconURL() })
-                .setDescription(`Performance Overview
-
-                Current Rank: **${MMR.data.current_data.currenttierpatched}** - *${MMR.data.current_data.ranking_in_tier} RR*
-                --------------------------------------------------
-                Highest Rank: **${MMR.data.highest_rank.patched_tier}** - *${highestrank}*
-
-                **Stats the past 5 games**
-                AVG. K/D: **${Number.parseFloat(kd).toFixed(2)}**
-                Kills: **${playerKills}**
-                Deaths: **${playerDeaths}**
-                `)
+                .setDescription(descriptionText)
                 .addFields({ name: 'Past 5 Competitive Games', value: "```Agent, Kills, Deaths, Assists\n" + text + "```", inline: false })
                 .addFields({ name: 'Past 5 Deathmatch Games', value: "```Agent, Kills, Deaths, Assists\n" + dmtext + "```", inline: false })
             interaction.editReply({ embeds: [embed] })
